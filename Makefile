@@ -4,3 +4,6 @@ build:
 run:
 	go run ./cmd/scrumpoke
 
+test:
+	 go test -v ./...
+
