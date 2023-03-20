@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 
@@ -9,12 +8,13 @@ import (
 )
 
 func testHttp(w http.ResponseWriter, r *http.Request) {
-    io.WriteString(w, "This is my website!")
+    _, err := io.WriteString(w, "This is my website!\n"+ bots.TestMessage())
+    if err != nil {
+        panic(err)
+    }
 }
 
 func main() {
-    fmt.Println(bots.TestMessage())
-
 	http.HandleFunc("/", testHttp)
 
 	err := http.ListenAndServe(":8080", nil)
