@@ -91,7 +91,10 @@ func main() {
 			panic(err)
 		}
 
-		bot.MakeRequest("deleteWebhook", tgbotapi.Params{})
+        _, err = bot.MakeRequest("deleteWebhook", tgbotapi.Params{})
+        if err != nil {
+            panic(err)
+        }
 
 		u := tgbotapi.NewUpdate(0)
 		u.Timeout = 60
@@ -127,7 +130,7 @@ func main() {
 					update.CallbackQuery.From.String(),
 					update.CallbackQuery.From.ID,
 					update.CallbackQuery.Data,
-                    update.CallbackQuery.Message.MessageID,
+					update.CallbackQuery.Message.MessageID,
 					update.CallbackQuery.ChatInstance,
 				))
 				if _, err := bot.Send(msg); err != nil {
