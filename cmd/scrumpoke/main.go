@@ -31,28 +31,25 @@ func (t *TelegramController) handleTelegramWebhook(c echo.Context) error {
 }
 
 type Config struct {
-    Telegram struct {
-        Secret string `env:"TELEGRAM_SECRET,required"`
-    }
+	Telegram struct {
+		Secret      string `env:"TELEGRAM_SECRET,notEmpty"`
+		CallbackUrl string `env:"TELEGRAM_CALLBACK_URL" envDefault:""`
+	}
 }
 
 func main() {
-    cfg := Config{}
+	cfg := Config{}
 	if err := env.Parse(&cfg); err != nil {
 		fmt.Printf("%+v\n", err)
 
-        panic(err)
-	}
-
-
-	bot, err := tgbotapi.NewBotAPI(cfg.Telegram.Secret)
-	if err != nil {
 		panic(err)
 	}
 
-	bot.Debug = true
+	var bot *tgbotapi.BotAPI
+	var err error
 
-	fmt.Printf("Authorized on account %s", bot.Self.UserName)
+	fmt.Println(cfg.Telegram.Secret)
+	fmt.Println(cfg.Telegram.CallbackUrl)
 
 	e := echo.New()
 
@@ -70,14 +67,50 @@ func main() {
 			return key == "testing-key", nil // todo: add config for secret key and update it via api on init
 		},
 	}))
-	tc := TelegramController{
-		updates: make(chan tgbotapi.Update, 100),
+
+	var tcUpdatesChannel tgbotapi.UpdatesChannel
+	if cfg.Telegram.CallbackUrl != "" {
+		bot, err = tgbotapi.NewBotAPIWithAPIEndpoint(
+			cfg.Telegram.Secret,
+			cfg.Telegram.CallbackUrl,
+		)
+		if err != nil {
+			panic(err)
+		}
+
+		tcUpdatesChannel := make(chan tgbotapi.Update, 100)
+		tc := TelegramController{
+			updates: tcUpdatesChannel,
+		}
+
+		webhooks.POST("", tc.handleTelegramWebhook)
+
+	} else {
+		bot, err = tgbotapi.NewBotAPI(cfg.Telegram.Secret)
+		if err != nil {
+			panic(err)
+		}
+
+		bot.MakeRequest("deleteWebhook", tgbotapi.Params{})
+
+		u := tgbotapi.NewUpdate(0)
+		u.Timeout = 60
+
+		tcUpdatesChannel = bot.GetUpdatesChan(u)
 	}
 
-	webhooks.POST("", tc.handleTelegramWebhook)
+	fmt.Printf("Authorized on account %s", bot.Self.UserName)
+
+	webhookInfo, err := bot.GetWebhookInfo()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("webhook set", webhookInfo.IsSet())
+	fmt.Println("webhook url", webhookInfo.URL)
 
 	go func() {
-		for update := range tc.updates {
+		for update := range tcUpdatesChannel {
 			fmt.Println(update.UpdateID)
 
 			if update.Message == nil {
