@@ -113,6 +113,30 @@ func main() {
 		for update := range tcUpdatesChannel {
 			fmt.Println(update.UpdateID)
 
+			if update.CallbackQuery != nil {
+				// Respond to the callback query, telling Telegram to show the user
+				// a message with the data received.
+				callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "Why did you vote: "+update.CallbackQuery.Data+"?!")
+				if _, err := bot.Request(callback); err != nil {
+					panic(err)
+				}
+
+				// And finally, send a message containing the data received.
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, fmt.Sprintf(
+					"UserName: %s\nUserId: %d\nData: %s\nRespondsToMessage: %d\nChat: %s",
+					update.CallbackQuery.From.String(),
+					update.CallbackQuery.From.ID,
+					update.CallbackQuery.Data,
+                    update.CallbackQuery.Message.MessageID,
+					update.CallbackQuery.ChatInstance,
+				))
+				if _, err := bot.Send(msg); err != nil {
+					panic(err)
+				}
+
+				continue
+			}
+
 			if update.Message == nil {
 				fmt.Println("not a message")
 				continue
