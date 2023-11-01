@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/Pawilonek/scrumpoke/internal/config"
 	"github.com/Pawilonek/scrumpoke/internal/poker"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,9 +19,9 @@ import (
 func main() {
 	cfg := config.Config{}
 	if err := env.Parse(&cfg); err != nil {
-		fmt.Printf("%+v\n", err)
+		log.Printf("%+v\n", err)
 
-		panic(err)
+		log.Fatal(err)
 	}
 
 	e := echo.New()
@@ -31,23 +31,23 @@ func main() {
 
 	bot, err := tgbotapi.NewBotAPI(cfg.Telegram.Secret)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	_, err = bot.MakeRequest("deleteWebhook", tgbotapi.Params{})
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	fmt.Printf("Authorized on account %s", bot.Self.UserName)
+	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	webhookInfo, err := bot.GetWebhookInfo()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	fmt.Println("webhook set", webhookInfo.IsSet())
-	fmt.Println("webhook url", webhookInfo.URL)
+	log.Println("webhook set", webhookInfo.IsSet())
+	log.Println("webhook url", webhookInfo.URL)
 
 	pokerBot := poker.NewPoker(bot, cfg.Jira)
 	go pokerBot.Run()

@@ -9,6 +9,10 @@ import (
 const (
 	callbackDataDelimiter = ":"
 	callbackDataFormat    = "%s" + callbackDataDelimiter + "%s"
+
+	planningDefaultMessageFormat      = "Planning ID: %s"
+	planningWithJiraTaskMessageFormat = "Planning: %s"
+	planningCurrentVotersFormat       = "Voters:"
 )
 
 var (
@@ -20,55 +24,70 @@ var (
 	}
 )
 
-type CallbackData struct {
-	hash Hash
-	data string
-}
+type (
+	callbackData struct {
+		hash gameHash
+		data string
+	}
+	keyboard struct {
+		rows     [][]string
+		gameHash gameHash
+		game     game
+	}
+)
 
-type Keyboard struct {
-	rows [][]string
-	hash Hash
-}
-
-func NewCallBackData(data string) CallbackData {
+func newCallBackDataFromString(data string) callbackData {
 	x := strings.Split(data, callbackDataDelimiter)
-	return CallbackData{
-		hash: Hash(x[0]),
+	return callbackData{
+		hash: gameHash(x[0]),
 		data: x[1],
 	}
 }
 
-func (c CallbackData) String() string {
-	return fmt.Sprintf(callbackDataFormat, c.hash, c.data)
-}
-
-func (c CallbackData) GetData() string {
-	return c.data
-}
-
-func (c CallbackData) GetHash() Hash {
-	return c.hash
-}
-
-func NewKeyboard(h Hash) Keyboard {
-	return Keyboard{
-		hash: h,
-		rows: keys,
+func newCallbackData(g gameHash, data string) callbackData {
+	return callbackData{
+		hash: g,
+		data: data,
 	}
 }
 
-func (k Keyboard) BuildMarkup() tgbotapi.InlineKeyboardMarkup {
+func (c callbackData) string() string {
+	return fmt.Sprintf(callbackDataFormat, c.hash, c.data)
+}
+
+func newKeyboard(h gameHash, g *game) keyboard {
+	return keyboard{
+		rows:     keys,
+		gameHash: h,
+		game:     *g,
+	}
+}
+
+func (k keyboard) buildText() (text string) {
+	text = fmt.Sprintf(planningDefaultMessageFormat, k.gameHash)
+	if k.game.jiraIssue != "" {
+		text = fmt.Sprintf(planningWithJiraTaskMessageFormat, k.game.jiraIssue)
+	}
+
+	voters := k.game.listVoters()
+	if len(voters) > 0 {
+		text = text + "\n" + planningCurrentVotersFormat
+		for _, v := range voters {
+			text = text + fmt.Sprintf("\n  - %s", v.UserName)
+		}
+	}
+
+	return
+}
+
+func (k keyboard) buildMarkup() tgbotapi.InlineKeyboardMarkup {
 	rows := make([][]tgbotapi.InlineKeyboardButton, 0)
 	for _, column := range k.rows {
 		buttons := make([]tgbotapi.InlineKeyboardButton, 0)
 		for _, v := range column {
-			buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(v, k.createCallbackData(v)))
+			buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(v, newCallbackData(k.gameHash, v).string()))
 		}
 		rows = append(rows, [][]tgbotapi.InlineKeyboardButton{buttons}...)
 	}
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
-}
-
-func (k Keyboard) createCallbackData(data string) string {
-	return fmt.Sprintf(callbackDataFormat, k.hash, data)
 }
